@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReservaRest PRO - Sistema de Gestión</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- BARRA SUPERIOR / ROL & SESIÓN -->
+  <header class="top-navbar">
+    <div class="brand-toggle">
+      <span class="brand-title">🍽️ ReservaRest PRO</span>
+    </div>
+    <div id="session-info" class="user-profile hidden">
+      <span id="user-role-badge" class="badge">ROLE</span>
+      <span id="user-display-name" class="user-name">Usuario</span>
+      <button id="btn-logout" class="btn-link">Cerrar Sesión</button>
+    </div>
+  </header>
+
+  <!-- PANTALLA DE LOGIN UNIFICADA -->
+  <div id="login-screen" class="login-container">
+    <div class="login-card">
+      <div class="brand-header">
+        <h1>Iniciar Sesión</h1>
+        <p>Cliente · Cocina · Mesero · Administrador</p>
+      </div>
+      <form id="login-form">
+        <div id="login-error" class="alert alert-error hidden"></div>
+        <div class="form-group">
+          <label for="login-username">Usuario</label>
+          <input type="text" id="login-username" placeholder="Ej: admin, mesero, cliente" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña / PIN</label>
+          <input type="password" id="login-password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Ingresar al Sistema</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PRINCIPAL DE LA APLICACIÓN -->
+  <div id="app-screen" class="app-container hidden">
+    <div class="app-body">
+      <!-- SIDEBAR / NAVEGACIÓN -->
+      <aside id="sidebar" class="sidebar">
+        <nav class="sidebar-nav">
+          <button data-view="cliente" class="nav-btn">🛒 Menú & Pedidos</button>
+          <button data-view="cocina" class="nav-btn">🍳 Vista Cocina</button>
+          <button data-view="mesero" class="nav-btn">🛎️ Vista Mesero</button>
+          <button data-view="panel" class="nav-btn">📊 Dashboard & Caja</button>
+          <button data-view="mesas" class="nav-btn">🪑 Estado Mesas</button>
+          <button data-view="usuarios" class="nav-btn">👥 Perfiles Demo</button>
+        </nav>
+      </aside>
+
+      <!-- CONTENIDO DINÁMICO DE LA VISTA -->
+      <main id="main-content" class="main-content">
+        <!-- Carga dinámica -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Carga de Módulos JavaScript (Orden estricto) -->
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/reservas.js"></script>
+  <script src="js/modules.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
