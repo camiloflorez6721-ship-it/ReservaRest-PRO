@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ReservaRest PRO - Sistema de Gestión</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -12,6 +12,7 @@
   <!-- BARRA SUPERIOR / ROL & SESIÓN -->
   <header class="top-navbar">
     <div class="brand-toggle">
+      <button id="mobile-menu-toggle" class="menu-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
       <span class="brand-title">🍽️ ReservaRest PRO</span>
     </div>
     <div id="session-info" class="user-profile hidden">
@@ -33,10 +34,15 @@
         <div class="form-group">
           <label for="login-username">Usuario</label>
           <input type="text" id="login-username" placeholder="Ej: admin, mesero, cliente" required autocomplete="off">
+          <div class="form-error-message" id="login-username-error"></div>
         </div>
         <div class="form-group">
           <label for="login-password">Contraseña / PIN</label>
-          <input type="password" id="login-password" placeholder="••••••••" required>
+          <div class="password-wrapper">
+            <input type="password" id="login-password" placeholder="••••••••" required>
+            <button type="button" class="password-toggle" id="btn-toggle-password" aria-label="Mostrar contraseña" aria-pressed="false">☼</button>
+          </div>
+          <div class="form-error-message" id="login-password-error"></div>
         </div>
         <button type="submit" class="btn btn-primary btn-block">Ingresar al Sistema</button>
       </form>
@@ -66,10 +72,10 @@
   </div>
 
   <!-- Carga de Módulos JavaScript (Orden estricto) -->
-  <script src="storage.js"></script>
-  <script src="auth.js"></script>
-  <script src="reservas.js"></script>
-  <script src="modules.js"></script>
-  <script src="app.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/reservas.js"></script>
+  <script src="js/modules.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

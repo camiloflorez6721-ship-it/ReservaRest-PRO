@@ -55,25 +55,30 @@ const UIModules = (() => {
               <div class="form-group">
                 <label>Fecha y Hora</label>
                 <input type="datetime-local" id="reserva-fecha" min="${getMinDatetimeLocal()}" required>
+                <div class="form-error-message" id="reserva-fecha-error"></div>
               </div>
               <div class="form-group">
                 <label>Número de personas</label>
                 <input type="number" id="reserva-personas" min="1" value="2" required>
+                <div class="form-error-message" id="reserva-personas-error"></div>
               </div>
               <div class="form-group">
                 <label>Selecciona la Mesa</label>
                 <select id="reserva-mesa" required>
                   <option value="">— Elige fecha y personas primero —</option>
                 </select>
+                <div class="form-error-message" id="reserva-mesa-error"></div>
                 <p id="reserva-mesas-hint" class="reserva-hint">Selecciona fecha y número de personas para ver mesas disponibles.</p>
               </div>
               <div class="form-group">
                 <label>Tu Nombre</label>
-                <input type="text" id="reserva-nombre" placeholder="Nombre completo" required maxlength="80">
+                <input type="text" id="reserva-nombre" placeholder="Nombre completo" required maxlength="80" inputmode="text" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ ]+" autocomplete="name">
+                <div class="form-error-message" id="reserva-nombre-error"></div>
               </div>
               <div class="form-group">
                 <label>Teléfono</label>
-                <input type="tel" id="reserva-telefono" placeholder="Ej: 3001234567" required maxlength="15">
+                <input type="tel" id="reserva-telefono" placeholder="Ej: 3001234567" required maxlength="15" inputmode="tel" pattern="[0-9+\s()-]{7,15}">
+                <div class="form-error-message" id="reserva-telefono-error"></div>
               </div>
               <button type="submit" class="btn btn-primary btn-block">Confirmar Reserva</button>
             </form>
@@ -82,7 +87,15 @@ const UIModules = (() => {
           <!-- CARTA DIGITAL Y PEDIDO EN EL LOCAL -->
           <div id="section-ordenar">
             <div style="background:white; padding:15px; border-radius:12px; display:flex; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
-              <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+              <div class="form-group" style="margin:0; flex:1; min-width:220px;">
+                <label><strong>Tipo de pedido:</strong></label>
+                <select id="tipo-pedido">
+                  <option value="local">Consumir en el local</option>
+                  <option value="llevar">Para llevar / recoger</option>
+                  <option value="domicilio">A domicilio</option>
+                </select>
+              </div>
+              <div id="cliente-mesa-wrapper" class="form-group" style="margin:0; flex:1; min-width:220px;">
                 <label><strong>Selecciona tu Mesa:</strong></label>
                 <select id="cliente-mesa-id">
                   ${db.mesas.map(m => {
@@ -91,10 +104,34 @@ const UIModules = (() => {
                   }).join('')}
                 </select>
               </div>
-              <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+              <div id="cliente-personas-wrapper" class="form-group" style="margin:0; flex:1; min-width:200px;">
                 <label><strong>N° de Personas:</strong></label>
                 <input type="number" id="cliente-num-personas" min="1" value="1">
               </div>
+            </div>
+
+            <div id="datos-entrega-wrapper" class="hidden" style="background:#faf7f2; border:1px dashed #c8b59a; padding:14px; border-radius:12px; margin-bottom:15px;">
+              <div class="form-group" style="margin-bottom:10px;">
+                <label><strong>Tu nombre</strong></label>
+                <input type="text" id="cliente-nombre-recoger" placeholder="Nombre completo" maxlength="80" inputmode="text" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ ]+">
+                <div class="form-error-message" id="cliente-nombre-recoger-error"></div>
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label><strong>Teléfono</strong></label>
+                <input type="tel" id="cliente-telefono-recoger" placeholder="Ej: 3001234567" maxlength="15" inputmode="tel" pattern="[0-9+\s()-]{7,15}">
+                <div class="form-error-message" id="cliente-telefono-recoger-error"></div>
+              </div>
+              <div id="cliente-direccion-wrapper" class="hidden">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label><strong>Dirección para domicilio</strong></label>
+                  <textarea id="cliente-direccion-entrega" rows="2" placeholder="Ingresa la dirección completa"></textarea>
+                  <div class="form-error-message" id="cliente-direccion-entrega-error"></div>
+                </div>
+              </div>
+            </div>
+
+            <div id="pedido-tipo-info" class="hidden" style="background:#f8f9fa; border:1px dashed #ccc; padding:12px 14px; border-radius:10px; margin-bottom:15px; color:#555;">
+              📦 Tu pedido será preparado para recoger en el restaurante. El mesero lo atenderá cuando llegue al local.
             </div>
 
             <div id="panel-mesa-bloqueada" class="mesa-bloqueada-panel hidden">
@@ -154,7 +191,7 @@ const UIModules = (() => {
   
       // VISTA PERFIL COCINA
       renderCocina(db) {
-        const pedidosActivos = db.pedidos.filter(p => p.estado !== 'servido' && p.estado !== 'pagado');
+        const pedidosActivos = db.pedidos.filter(p => p.estado !== 'servido' && p.estado !== 'pagado' && p.estado !== 'entregado');
         return `
           <h2>👨‍🍳 Panel de Cocina</h2>
           <p>Órdenes entrantes</p>
@@ -162,11 +199,13 @@ const UIModules = (() => {
             ${pedidosActivos.length === 0 ? '<p>No hay pedidos pendientes en cocina. 🎉</p>' :
               pedidosActivos.map(p => `
                 <div class="order-card ${p.estado === 'listo' ? 'ready' : (p.estado === 'preparando' ? 'preparing' : '')}">
-                  <div style="display:flex; justify-content:space-between;">
-                    <h3>Mesa #${p.mesaId}</h3>
+                  <div style="display:flex; justify-content:space-between; gap:8px;">
+                    <h3>${p.tipo === 'llevar' ? '🛍️ Para llevar' : `Mesa #${p.mesaId}`}</h3>
                     <span class="badge ${p.estado === 'listo' ? 'badge-info' : 'badge-warning'}">${p.estado}</span>
                   </div>
-                  <p style="font-size:0.85rem; color:#555;">Personas: ${p.personas} · Hora: ${p.hora}</p>
+                  <p style="font-size:0.85rem; color:#555;">${p.tipo === 'llevar' ? 'Recoger en restaurante' : p.tipo === 'domicilio' ? 'Entrega a domicilio' : `Mesa #${p.mesaId}`} · Personas: ${p.personas} · Hora: ${p.hora}</p>
+                  ${p.codigoEntrega ? `<p style="font-size:0.8rem; color:var(--primary); margin-top:6px; font-weight:700;">Código: ${sanitize(p.codigoEntrega)}</p>` : ''}
+                  ${p.nombreCliente ? `<p style="font-size:0.8rem; color:#666; margin-top:4px;">Cliente: ${sanitize(p.nombreCliente)}</p>` : ''}
                   <hr style="margin:10px 0;">
                   <ul>
                     ${p.items.map(i => `<li><strong>${i.cantidad}x</strong> ${sanitize(i.nombre)}</li>`).join('')}
@@ -191,7 +230,7 @@ const UIModules = (() => {
   
       // VISTA PERFIL MESERO
       renderMesero(db) {
-        const pedidosMesero = db.pedidos.filter(p => p.estado !== 'pagado');
+        const pedidosMesero = db.pedidos.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado');
         const reservasPendientes = filtrarPendientes(db.reservas);
         const reservasHoy = reservasPendientes.filter(r => esHoy(r.fecha));
         const reservasProximas = reservasPendientes.filter(r => !esHoy(r.fecha));
@@ -220,11 +259,30 @@ const UIModules = (() => {
             ${pedidosMesero.length === 0 ? '<p>No hay mesas activas con pedidos.</p>' :
               pedidosMesero.map(p => `
                 <div class="order-card ${p.estado === 'listo' ? 'ready' : ''}">
-                  <div style="display:flex; justify-content:space-between;">
-                    <h3>Mesa #${p.mesaId}</h3>
+                  <div style="display:flex; justify-content:space-between; gap:8px;">
+                    <h3>${p.tipo === 'llevar' ? '🛍️ Para llevar' : `Mesa #${p.mesaId}`}</h3>
                     <span class="badge">${p.estado}</span>
                   </div>
+                  <p style="margin-top:5px; font-size:0.9rem; color:#555;">${p.tipo === 'llevar' ? 'Recoger en restaurante' : p.tipo === 'domicilio' ? 'Entrega a domicilio' : `Mesa #${p.mesaId}`}</p>
+                  ${p.codigoEntrega ? `<p style="margin-top:6px; font-size:0.85rem; color:var(--primary); font-weight:700;">Código: ${sanitize(p.codigoEntrega)}</p>` : ''}
+                  ${p.nombreCliente ? `<p style="margin-top:4px; font-size:0.85rem; color:#666;">Cliente: ${sanitize(p.nombreCliente)}</p>` : ''}
                   <p style="margin-top:5px;"><strong>Total:</strong> $${p.total.toLocaleString()}</p>
+                  <div style="margin-top:10px;">
+                    ${p.tipo === 'local' ? '' : `<small style="color:#777;">${p.tipo === 'domicilio' ? 'Entrega por domicilio' : 'Recogida en restaurante'}</small>`}
+                  </div>
+                  ${p.tipo === 'llevar' ? `
+                    <div style="margin-top:10px;">
+                      <label style="font-size:0.8rem; color:#444; font-weight:700;">Código del cliente</label>
+                      <input type="text" class="input-verificar-codigo" data-id="${p.id}" maxlength="8" style="width:100%; margin-top:4px; color:#111; background:#fff;" placeholder="Ej: ABC123">
+                      <button class="btn btn-secondary btn-block btn-verificar-codigo" data-id="${p.id}" style="margin-top:8px;">✅ Verificar Código</button>
+                      ${p.codigoConfirmado ? '<p style="font-size:0.8rem; color:var(--status-ready); margin-top:6px;">✔ Código confirmado</p>' : '<p style="font-size:0.8rem; color:#444; margin-top:6px;">Esperando verificación</p>'}
+                    </div>
+                  ` : p.tipo === 'domicilio' ? `
+                    <div style="margin-top:10px;">
+                      <button class="btn btn-success btn-block btn-mesero-entregado" data-id="${p.id}">📦 Marcar como entregado</button>
+                      ${p.estado === 'entregado' ? '<p style="font-size:0.8rem; color:var(--status-ready); margin-top:6px;">✔ Entregado</p>' : '<p style="font-size:0.8rem; color:#444; margin-top:6px;">Pendiente de entrega</p>'}
+                    </div>
+                  ` : ''}
                   <div style="margin-top:15px;">
                     ${p.estado === 'listo' ? `
                       <button class="btn btn-primary btn-block btn-mesero-deliver" data-id="${p.id}">🍽️ Entregar a la Mesa</button>
@@ -283,11 +341,18 @@ const UIModules = (() => {
             <form id="form-plato-admin" class="hidden" style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:15px;">
               <input type="hidden" id="admin-plato-id">
               <h4 id="form-plato-titulo" style="margin-bottom:10px;">Nuevo Plato</h4>
-              <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <input type="text" id="admin-plato-nombre" placeholder="Nombre del plato" style="flex:2;" required>
-                <input type="number" id="admin-plato-precio" placeholder="Precio ($)" style="flex:1;" required>
+              <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+                <div style="flex:2; min-width:220px;">
+                  <input type="text" id="admin-plato-nombre" placeholder="Nombre del plato" required>
+                  <div class="form-error-message" id="admin-plato-nombre-error"></div>
+                </div>
+                <div style="flex:1; min-width:180px;">
+                  <input type="number" id="admin-plato-precio" placeholder="Precio ($)" min="1" required>
+                  <div class="form-error-message" id="admin-plato-precio-error"></div>
+                </div>
               </div>
               <textarea id="admin-plato-desc" placeholder="Descripción de ingredientes o preparación..." style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; margin-bottom:10px;" rows="2" required></textarea>
+              <div class="form-error-message" id="admin-plato-desc-error"></div>
               <div style="display:flex; gap:10px;">
                 <button type="submit" class="btn btn-success btn-sm">Guardar Plato</button>
                 <button type="button" id="btn-cancelar-plato" class="btn btn-secondary btn-sm">Cancelar</button>

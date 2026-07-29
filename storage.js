@@ -18,6 +18,69 @@ const StorageModule = (() => {
       for (let i = 0; i < str.length; i++) hash = ((hash << 5) + hash) + str.charCodeAt(i);
       return 'h_' + Math.abs(hash).toString(16);
     }
+
+    function base64UrlEncode(value) {
+      const str = typeof value === 'string' ? value : JSON.stringify(value);
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      bytes.forEach((byte) => binary += String.fromCharCode(byte));
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    }
+
+    function base64UrlDecode(value) {
+      const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+      const binary = atob(base64 + padding);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }
+
+    async function createJwtSecretKey() {
+      const secret = 'reserva-rest-jwt-secret-v1';
+      const encoder = new TextEncoder();
+      return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+    }
+
+    async function generateJWT(payload) {
+      if (!window.crypto || !window.crypto.subtle) return null;
+
+      const header = { alg: 'HS256', typ: 'JWT' };
+      const now = Math.floor(Date.now() / 1000);
+      const body = {
+        ...payload,
+        iat: now,
+        exp: now + 8 * 60 * 60
+      };
+
+      const headerPart = base64UrlEncode(header);
+      const payloadPart = base64UrlEncode(body);
+      const signingInput = `${headerPart}.${payloadPart}`;
+      const key = await createJwtSecretKey();
+      const signatureBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signingInput));
+      const signaturePart = base64UrlEncode(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+      return `${signingInput}.${signaturePart}`;
+    }
+
+    async function verifyJWT(token) {
+      if (!token || !window.crypto || !window.crypto.subtle) return null;
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+
+      const [headerPart, payloadPart, signaturePart] = parts;
+      const signingInput = `${headerPart}.${payloadPart}`;
+      const key = await createJwtSecretKey();
+      const signatureBuffer = new TextEncoder().encode(signaturePart);
+      const isValid = await crypto.subtle.verify('HMAC', key, signatureBuffer, new TextEncoder().encode(signingInput));
+      if (!isValid) return null;
+
+      try {
+        const payload = JSON.parse(base64UrlDecode(payloadPart));
+        if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
+        return payload;
+      } catch (error) {
+        return null;
+      }
+    }
   
     function sanitize(str) {
       if (typeof str !== 'string') return str;
@@ -62,6 +125,8 @@ const StorageModule = (() => {
     return {
       sanitize,
       hashString,
+      generateJWT,
+      verifyJWT,
       async initDB(forceReset = false) {
         const rawData = localStorage.getItem(DB_KEY);
         if (!rawData || forceReset) {

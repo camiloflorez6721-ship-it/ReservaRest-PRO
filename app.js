@@ -8,11 +8,193 @@ document.addEventListener('DOMContentLoaded', () => {
   
     const mainContent = document.getElementById('main-content');
     const sidebar = document.getElementById('sidebar');
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const loginScreen = document.getElementById('login-screen');
     const appScreen = document.getElementById('app-screen');
     const sessionInfo = document.getElementById('session-info');
     const loginForm = document.getElementById('login-form');
     const btnLogout = document.getElementById('btn-logout');
+    const passwordInput = document.getElementById('login-password');
+    const passwordToggle = document.getElementById('btn-toggle-password');
+    const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000;
+    let inactivityTimer = null;
+
+    function setFieldError(inputId, errorId, message) {
+      const input = document.getElementById(inputId);
+      const error = document.getElementById(errorId);
+      if (input) {
+        input.classList.toggle('input-invalid', Boolean(message));
+      }
+      if (error) {
+        error.textContent = message || '';
+        error.classList.toggle('show', Boolean(message));
+      }
+    }
+
+    function clearFieldError(inputId, errorId) {
+      setFieldError(inputId, errorId, '');
+    }
+
+    function validateLoginForm() {
+      let valid = true;
+      const username = document.getElementById('login-username').value.trim();
+      const password = passwordInput.value.trim();
+
+      if (username.length < 3) {
+        setFieldError('login-username', 'login-username-error', 'Ingresa un usuario válido.');
+        valid = false;
+      } else {
+        clearFieldError('login-username', 'login-username-error');
+      }
+
+      if (password.length < 4) {
+        setFieldError('login-password', 'login-password-error', 'La contraseña debe tener al menos 4 caracteres.');
+        valid = false;
+      } else {
+        clearFieldError('login-password', 'login-password-error');
+      }
+
+      return valid;
+    }
+
+    function validateReservaFormUI() {
+      let valid = true;
+      const nombre = document.getElementById('reserva-nombre').value.trim();
+      const telefono = document.getElementById('reserva-telefono').value.trim();
+      const personas = document.getElementById('reserva-personas').value.trim();
+      const mesa = document.getElementById('reserva-mesa').value;
+      const fecha = document.getElementById('reserva-fecha').value;
+
+      const nombreValido = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(nombre);
+      if (!nombre || !nombreValido) {
+        setFieldError('reserva-nombre', 'reserva-nombre-error', 'Ingresa un nombre válido, solo letras y espacios.');
+        valid = false;
+      } else {
+        clearFieldError('reserva-nombre', 'reserva-nombre-error');
+      }
+
+      if (!/^[0-9+\s()-]{7,15}$/.test(telefono)) {
+        setFieldError('reserva-telefono', 'reserva-telefono-error', 'Ingresa un teléfono válido de 7 a 15 dígitos.');
+        valid = false;
+      } else {
+        clearFieldError('reserva-telefono', 'reserva-telefono-error');
+      }
+
+      const personasNum = parseInt(personas, 10);
+      if (!personas || personasNum < 1 || personasNum > 20) {
+        setFieldError('reserva-personas', 'reserva-personas-error', 'El número de personas debe estar entre 1 y 20.');
+        valid = false;
+      } else {
+        clearFieldError('reserva-personas', 'reserva-personas-error');
+      }
+
+      if (!mesa) {
+        setFieldError('reserva-mesa', 'reserva-mesa-error', 'Selecciona una mesa disponible.');
+        valid = false;
+      } else {
+        clearFieldError('reserva-mesa', 'reserva-mesa-error');
+      }
+
+      if (!fecha) {
+        setFieldError('reserva-fecha', 'reserva-fecha-error', 'Selecciona una fecha y hora válidas.');
+        valid = false;
+      } else {
+        const fechaReserva = new Date(fecha);
+        if (fechaReserva <= new Date()) {
+          setFieldError('reserva-fecha', 'reserva-fecha-error', 'La reserva debe ser en una fecha futura.');
+          valid = false;
+        } else {
+          clearFieldError('reserva-fecha', 'reserva-fecha-error');
+        }
+      }
+
+      return valid;
+    }
+
+    function validatePlatoFormUI() {
+      let valid = true;
+      const nombre = document.getElementById('admin-plato-nombre').value.trim();
+      const precio = document.getElementById('admin-plato-precio').value.trim();
+      const desc = document.getElementById('admin-plato-desc').value.trim();
+
+      if (nombre.length < 3) {
+        setFieldError('admin-plato-nombre', 'admin-plato-nombre-error', 'El nombre del plato debe tener al menos 3 caracteres.');
+        valid = false;
+      } else {
+        clearFieldError('admin-plato-nombre', 'admin-plato-nombre-error');
+      }
+
+      if (!precio || parseFloat(precio) <= 0) {
+        setFieldError('admin-plato-precio', 'admin-plato-precio-error', 'Ingresa un precio mayor a cero.');
+        valid = false;
+      } else {
+        clearFieldError('admin-plato-precio', 'admin-plato-precio-error');
+      }
+
+      if (desc.length < 5) {
+        setFieldError('admin-plato-desc', 'admin-plato-desc-error', 'Agrega una descripción más detallada.');
+        valid = false;
+      } else {
+        clearFieldError('admin-plato-desc', 'admin-plato-desc-error');
+      }
+
+      return valid;
+    }
+
+    function generarCodigoEntrega() {
+      const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let codigo = '';
+      do {
+        codigo = Array.from({ length: 5 }, () => caracteres[Math.floor(Math.random() * caracteres.length)]).join('');
+      } while (dbData?.pedidos?.some(p => p.codigoEntrega === codigo));
+      return codigo;
+    }
+
+    function validateDatosEntregaUI(tipoPedido) {
+      let valid = true;
+      const nombreInput = document.getElementById('cliente-nombre-recoger');
+      const telefonoInput = document.getElementById('cliente-telefono-recoger');
+      const direccionInput = document.getElementById('cliente-direccion-entrega');
+
+      if (tipoPedido === 'local') {
+        clearFieldError('cliente-nombre-recoger', 'cliente-nombre-recoger-error');
+        clearFieldError('cliente-telefono-recoger', 'cliente-telefono-recoger-error');
+        clearFieldError('cliente-direccion-entrega', 'cliente-direccion-entrega-error');
+        return true;
+      }
+
+      const nombre = nombreInput?.value.trim() || '';
+      const telefono = telefonoInput?.value.trim() || '';
+      const direccion = direccionInput?.value.trim() || '';
+
+      const nombreValido = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]{3,80}$/.test(nombre);
+      if (!nombreValido) {
+        setFieldError('cliente-nombre-recoger', 'cliente-nombre-recoger-error', 'Ingresa un nombre válido, solo letras y espacios.');
+        valid = false;
+      } else {
+        clearFieldError('cliente-nombre-recoger', 'cliente-nombre-recoger-error');
+      }
+
+      if (!/^[0-9+\s()-]{7,15}$/.test(telefono)) {
+        setFieldError('cliente-telefono-recoger', 'cliente-telefono-recoger-error', 'Ingresa un teléfono válido de 7 a 15 dígitos.');
+        valid = false;
+      } else {
+        clearFieldError('cliente-telefono-recoger', 'cliente-telefono-recoger-error');
+      }
+
+      if (tipoPedido === 'domicilio') {
+        if (!direccion || direccion.length < 5) {
+          setFieldError('cliente-direccion-entrega', 'cliente-direccion-entrega-error', 'La dirección es obligatoria para domicilio.');
+          valid = false;
+        } else {
+          clearFieldError('cliente-direccion-entrega', 'cliente-direccion-entrega-error');
+        }
+      } else {
+        clearFieldError('cliente-direccion-entrega', 'cliente-direccion-entrega-error');
+      }
+
+      return valid;
+    }
   
     async function refreshDB(forceReload = false) {
       if (forceReload || !dbData) {
@@ -26,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function init() {
       await refreshDB(true);
-      const session = AuthModule.getUserSession();
+      const session = await AuthModule.restoreSession();
   
       if (session) {
         showApp(session);
@@ -39,6 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
       appScreen.classList.add('hidden');
       sessionInfo.classList.add('hidden');
       loginScreen.classList.remove('hidden');
+      sidebar.classList.remove('open');
+      document.body.classList.remove('menu-open');
     }
   
     function showApp(session) {
@@ -58,18 +242,58 @@ document.addEventListener('DOMContentLoaded', () => {
       if (firstVisibleBtn) firstVisibleBtn.click();
     }
   
+    function closeMobileMenu() {
+      sidebar.classList.remove('open');
+      document.body.classList.remove('menu-open');
+      if (mobileMenuToggle) {
+        mobileMenuToggle.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function resetInactivityTimer() {
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
+
+      inactivityTimer = setTimeout(() => {
+        if (AuthModule.getUserSession()) {
+          AuthModule.logout();
+          showLogin();
+          alert('Tu sesión ha expirado por inactividad. Inicia sesión nuevamente.');
+        }
+      }, INACTIVITY_TIMEOUT_MS);
+    }
+
+    function setupInactivityTracker() {
+      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+      events.forEach((eventName) => {
+        document.addEventListener(eventName, resetInactivityTimer, { passive: true });
+      });
+      resetInactivityTimer();
+    }
+
+    if (mobileMenuToggle) {
+      mobileMenuToggle.addEventListener('click', () => {
+        const isOpen = sidebar.classList.toggle('open');
+        document.body.classList.toggle('menu-open', isOpen);
+        mobileMenuToggle.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
     sidebar.addEventListener('click', async (e) => {
       if (e.target.classList.contains('nav-btn')) {
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         const view = e.target.getAttribute('data-view');
         await navigateTo(view);
+        closeMobileMenu();
       }
     });
   
     async function navigateTo(view) {
       activeView = view;
       await refreshDB();
+      closeMobileMenu();
 
       if (view === 'cliente') {
         mainContent.innerHTML = UIModules.renderCliente(dbData);
@@ -152,6 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    function enviarSmsReserva(reserva) {
+      return { ok: false, mensaje: 'El envío real de SMS requiere un servicio externo.' };
+    }
+
     async function checkInReserva(reservaId, currentView) {
       const reserva = dbData.reservas.find(r => r.id === reservaId);
       if (!reserva) return;
@@ -168,7 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const mesa = dbData.mesas.find(m => m.id === parseInt(reserva.mesaId, 10));
       if (mesa) mesa.estado = 'ocupada';
 
+      enviarSmsReserva(reserva);
       await persistAndReload(currentView);
+
       alert(`🎉 ¡Llegada confirmada! Mesa #${reserva.mesaId} marcada como OCUPADA.\n\nEl cliente debe ingresar su código (${reserva.codigo}) en el menú para pedir.`);
     }
 
@@ -273,10 +503,70 @@ document.addEventListener('DOMContentLoaded', () => {
   
       const selectMesaOrden = document.getElementById('cliente-mesa-id');
       const inputPersonasOrden = document.getElementById('cliente-num-personas');
+      const selectTipoPedido = document.getElementById('tipo-pedido');
+      const clienteMesaWrapper = document.getElementById('cliente-mesa-wrapper');
+      const clientePersonasWrapper = document.getElementById('cliente-personas-wrapper');
+      const pedidoTipoInfo = document.getElementById('pedido-tipo-info');
+      const datosEntregaWrapper = document.getElementById('datos-entrega-wrapper');
+      const clienteDireccionWrapper = document.getElementById('cliente-direccion-wrapper');
+      const inputNombreRecoger = document.getElementById('cliente-nombre-recoger');
+      const inputTelefonoRecoger = document.getElementById('cliente-telefono-recoger');
+      const inputDireccionEntrega = document.getElementById('cliente-direccion-entrega');
   
       const selectMesaReserva = document.getElementById('reserva-mesa');
       const inputPersonasReserva = document.getElementById('reserva-personas');
       const inputFechaReserva = document.getElementById('reserva-fecha');
+      const inputNombreReserva = document.getElementById('reserva-nombre');
+      const inputTelefonoReserva = document.getElementById('reserva-telefono');
+
+      if (selectTipoPedido) {
+        const actualizarTipoPedido = () => {
+          const tipo = selectTipoPedido.value;
+          const esLocal = tipo === 'local';
+          const esDomicilio = tipo === 'domicilio';
+          const esLlevar = tipo === 'llevar';
+          const panelMenu = document.getElementById('panel-menu-pedido');
+          const panelCodigo = document.getElementById('panel-validacion-codigo');
+          const bannerAutorizado = document.getElementById('acceso-autorizado-banner');
+          const errorCodigo = document.getElementById('codigo-error-msg');
+
+          if (clienteMesaWrapper) clienteMesaWrapper.classList.toggle('hidden', !esLocal);
+          if (clientePersonasWrapper) clientePersonasWrapper.classList.toggle('hidden', !esLocal);
+          if (datosEntregaWrapper) datosEntregaWrapper.classList.toggle('hidden', esLocal);
+          if (clienteDireccionWrapper) clienteDireccionWrapper.classList.toggle('hidden', !esDomicilio);
+          if (pedidoTipoInfo) {
+            if (esLlevar) {
+              pedidoTipoInfo.textContent = '📦 Tu pedido será preparado para recoger en el restaurante. El mesero lo atenderá cuando llegues al local.';
+              pedidoTipoInfo.classList.remove('hidden');
+            } else if (esDomicilio) {
+              pedidoTipoInfo.textContent = '🚚 Tu pedido será preparado para entregar a domicilio. El mesero confirmará el código cuando llegue el domiciliario.';
+              pedidoTipoInfo.classList.remove('hidden');
+            } else {
+              pedidoTipoInfo.classList.add('hidden');
+            }
+          }
+
+          if (!esLocal) {
+            if (selectMesaOrden) selectMesaOrden.value = '';
+            if (inputPersonasOrden) inputPersonasOrden.value = '1';
+            if (selectMesaOrden) {
+              validarCapacidad(selectMesaOrden, inputPersonasOrden);
+            }
+            panelMenu?.classList.remove('hidden');
+            panelCodigo?.classList.add('hidden');
+            bannerAutorizado?.classList.add('hidden');
+            if (errorCodigo) {
+              errorCodigo.classList.add('hidden');
+              errorCodigo.textContent = '';
+            }
+          } else {
+            evaluarAccesoMesa(parseInt(selectMesaOrden?.value || '0', 10));
+          }
+        };
+
+        selectTipoPedido.addEventListener('change', actualizarTipoPedido);
+        actualizarTipoPedido();
+      }
 
       if (selectMesaOrden && inputPersonasOrden) {
         selectMesaOrden.addEventListener('change', () => {
@@ -289,15 +579,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (inputFechaReserva) {
         inputFechaReserva.addEventListener('change', actualizarMesasReserva);
+        inputFechaReserva.addEventListener('input', () => clearFieldError('reserva-fecha', 'reserva-fecha-error'));
       }
       if (inputPersonasReserva) {
         inputPersonasReserva.addEventListener('input', () => {
+          clearFieldError('reserva-personas', 'reserva-personas-error');
           actualizarMesasReserva();
           validarCapacidad(selectMesaReserva, inputPersonasReserva);
         });
       }
       if (selectMesaReserva) {
-        selectMesaReserva.addEventListener('change', () => validarCapacidad(selectMesaReserva, inputPersonasReserva));
+        selectMesaReserva.addEventListener('change', () => {
+          clearFieldError('reserva-mesa', 'reserva-mesa-error');
+          validarCapacidad(selectMesaReserva, inputPersonasReserva);
+        });
+      }
+      if (inputNombreReserva) {
+        inputNombreReserva.addEventListener('input', () => clearFieldError('reserva-nombre', 'reserva-nombre-error'));
+      }
+      if (inputTelefonoReserva) {
+        inputTelefonoReserva.addEventListener('input', () => {
+          const sanitized = inputTelefonoReserva.value.replace(/[^0-9+\s()-]/g, '');
+          if (inputTelefonoReserva.value !== sanitized) {
+            inputTelefonoReserva.value = sanitized;
+          }
+          clearFieldError('reserva-telefono', 'reserva-telefono-error');
+        });
+      }
+      if (inputNombreRecoger) {
+        inputNombreRecoger.addEventListener('input', () => {
+          const sanitized = inputNombreRecoger.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, '');
+          if (inputNombreRecoger.value !== sanitized) {
+            inputNombreRecoger.value = sanitized;
+          }
+          clearFieldError('cliente-nombre-recoger', 'cliente-nombre-recoger-error');
+        });
+      }
+      if (inputTelefonoRecoger) {
+        inputTelefonoRecoger.addEventListener('input', () => {
+          const sanitized = inputTelefonoRecoger.value.replace(/[^0-9+\s()-]/g, '');
+          if (inputTelefonoRecoger.value !== sanitized) {
+            inputTelefonoRecoger.value = sanitized;
+          }
+          clearFieldError('cliente-telefono-recoger', 'cliente-telefono-recoger-error');
+        });
+      }
+      if (inputDireccionEntrega) {
+        inputDireccionEntrega.addEventListener('input', () => clearFieldError('cliente-direccion-entrega', 'cliente-direccion-entrega-error'));
       }
   
       tabOrden.addEventListener('click', () => {
@@ -329,11 +657,23 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   
       document.getElementById('btn-enviar-pedido-cocina').addEventListener('click', async () => {
-        const mesaId = parseInt(selectMesaOrden.value, 10);
+        const tipoPedido = selectTipoPedido ? selectTipoPedido.value : 'local';
         const personas = parseInt(inputPersonasOrden.value, 10) || 1;
 
-        if (!mesaPermitePedido(mesaId)) {
-          alert('⚠️ Debes validar tu código de reserva antes de enviar un pedido.');
+        if (tipoPedido === 'local') {
+          const mesaId = parseInt(selectMesaOrden.value, 10);
+          if (!mesaId || Number.isNaN(mesaId)) {
+            alert('Selecciona una mesa para consumir en el local.');
+            return;
+          }
+          if (!mesaPermitePedido(mesaId)) {
+            alert('⚠️ Debes validar tu código de reserva antes de enviar un pedido.');
+            return;
+          }
+        }
+
+        if (!validateDatosEntregaUI(tipoPedido)) {
+          alert('Completa los datos del cliente antes de enviar este pedido.');
           return;
         }
 
@@ -343,25 +683,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const total = cart.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
-  
+        const codigoEntrega = tipoPedido === 'llevar' ? generarCodigoEntrega() : '';
+        const nombreCliente = document.getElementById('cliente-nombre-recoger')?.value.trim() || '';
+        const telefonoCliente = document.getElementById('cliente-telefono-recoger')?.value.trim() || '';
+        const direccionEntrega = document.getElementById('cliente-direccion-entrega')?.value.trim() || '';
+
         const nuevoPedido = {
           id: 'p_' + Date.now(),
-          mesaId,
+          mesaId: tipoPedido === 'local' ? parseInt(selectMesaOrden.value, 10) : 0,
           personas,
+          tipo: tipoPedido,
           items: [...cart],
           total,
           estado: 'pendiente',
-          hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          codigoEntrega,
+          nombreCliente,
+          telefonoCliente,
+          direccionEntrega,
+          codigoConfirmado: false
         };
   
         dbData.pedidos.push(nuevoPedido);
 
-        const mesa = dbData.mesas.find(m => m.id === mesaId);
-        if (mesa && mesa.estado === 'disponible') mesa.estado = 'ocupada';
+        if (tipoPedido === 'local') {
+          const mesa = dbData.mesas.find(m => m.id === nuevoPedido.mesaId);
+          if (mesa && mesa.estado === 'disponible') mesa.estado = 'ocupada';
+        }
 
         cart = [];
         await persistAndReload('cliente');
-        alert(`🚀 ¡Pedido para la Mesa #${mesaId} enviado a la cocina!`);
+        const mensajePedido = tipoPedido === 'domicilio'
+          ? '🚚 ¡Pedido a domicilio enviado! El mesero lo marcará como entregado cuando llegue.'
+          : tipoPedido === 'llevar'
+            ? `🛍️ ¡Pedido para llevar enviado! Código de recogida: ${codigoEntrega}`
+            : `🚀 ¡Pedido para la Mesa #${nuevoPedido.mesaId} enviado a la cocina!`;
+        alert(mensajePedido);
       });
 
       const formValidarCodigo = document.getElementById('form-validar-codigo');
@@ -524,6 +881,52 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       });
+
+      document.querySelectorAll('.btn-verificar-codigo').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.getAttribute('data-id');
+          const p = dbData.pedidos.find(x => x.id === id);
+          const input = document.querySelector(`.input-verificar-codigo[data-id="${id}"]`);
+          const codigoIngresado = input?.value.trim().toUpperCase() || '';
+
+          if (!p || !p.codigoEntrega) return;
+          if (!codigoIngresado) {
+            alert('Ingresa el código que proporcionó el cliente.');
+            return;
+          }
+
+          if (codigoIngresado === p.codigoEntrega.toUpperCase()) {
+            p.codigoConfirmado = true;
+            p.estado = p.estado === 'listo' ? 'listo' : 'servido';
+            await StorageModule.saveDB(dbData);
+            navigateTo('mesero');
+            alert('✅ Código verificado correctamente.');
+          } else {
+            alert('❌ El código no coincide. Verifica la información con el cliente.');
+          }
+        });
+      });
+
+      document.querySelectorAll('.btn-mesero-entregado').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.getAttribute('data-id');
+          const p = dbData.pedidos.find(x => x.id === id);
+          if (!p) return;
+
+          p.estado = 'entregado';
+          p.codigoConfirmado = true;
+
+          if (p.tipo === 'local' && p.mesaId) {
+            const mesa = dbData.mesas.find(m => m.id === p.mesaId);
+            if (mesa) mesa.estado = 'disponible';
+            ReservasModule.finalizarReservaMesa(dbData, p.mesaId);
+          }
+
+          await StorageModule.saveDB(dbData);
+          navigateTo('mesero');
+          alert(p.tipo === 'local' ? '✅ Pedido marcado como entregado y la mesa liberada.' : '✅ Pedido marcado como entregado.');
+        });
+      });
   
       document.querySelectorAll('.btn-mesero-pay').forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -569,6 +972,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const formPlato = document.getElementById('form-plato-admin');
       const btnToggleForm = document.getElementById('btn-toggle-nuevo-plato');
       const btnCancelarPlato = document.getElementById('btn-cancelar-plato');
+      const inputNombrePlato = document.getElementById('admin-plato-nombre');
+      const inputPrecioPlato = document.getElementById('admin-plato-precio');
+      const inputDescPlato = document.getElementById('admin-plato-desc');
   
       btnToggleForm.addEventListener('click', () => {
         document.getElementById('form-plato-titulo').textContent = 'Nuevo Plato';
@@ -580,6 +986,16 @@ document.addEventListener('DOMContentLoaded', () => {
       btnCancelarPlato.addEventListener('click', () => {
         formPlato.classList.add('hidden');
       });
+
+      if (inputNombrePlato) {
+        inputNombrePlato.addEventListener('input', () => clearFieldError('admin-plato-nombre', 'admin-plato-nombre-error'));
+      }
+      if (inputPrecioPlato) {
+        inputPrecioPlato.addEventListener('input', () => clearFieldError('admin-plato-precio', 'admin-plato-precio-error'));
+      }
+      if (inputDescPlato) {
+        inputDescPlato.addEventListener('input', () => clearFieldError('admin-plato-desc', 'admin-plato-desc-error'));
+      }
   
       // Cargar datos para Editar Plato
       document.querySelectorAll('.btn-edit-plato').forEach(btn => {
@@ -615,6 +1031,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Guardar Plato (Crear o Editar)
       formPlato.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!validatePlatoFormUI()) {
+          return;
+        }
+
         const id = document.getElementById('admin-plato-id').value;
         const nombre = document.getElementById('admin-plato-nombre').value;
         const precio = parseFloat(document.getElementById('admin-plato-precio').value);
@@ -644,11 +1064,33 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   
+    if (passwordInput && passwordToggle) {
+      passwordToggle.addEventListener('click', () => {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        passwordToggle.textContent = isPassword ? '☾' : '☼';
+        passwordToggle.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        passwordToggle.setAttribute('aria-pressed', String(isPassword));
+        passwordInput.focus();
+      });
+    }
+
+    if (document.getElementById('login-username')) {
+      document.getElementById('login-username').addEventListener('input', () => clearFieldError('login-username', 'login-username-error'));
+    }
+    if (passwordInput) {
+      passwordInput.addEventListener('input', () => clearFieldError('login-password', 'login-password-error'));
+    }
+
     // LOGIN
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        const u = document.getElementById('login-username').value;
+        if (!validateLoginForm()) {
+          return;
+        }
+
+        const u = document.getElementById('login-username').value.trim();
         const p = document.getElementById('login-password').value;
         const session = await AuthModule.login(u, p);
         loginForm.reset();
@@ -664,5 +1106,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   
     setupGlobalActions();
+    setupInactivityTracker();
     init();
   });
